@@ -2,7 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { THEMES, FLOWERS, CATEGORIES } from './constants';
 import { BouquetData, FlowerData, ThemeConfig } from './types';
 import { encodeBouquet, decodeBouquet, generateRandomPosition, generateSmartPosition } from './utils';
-import { Share2, Flower as FlowerIcon, Check, Copy, ArrowLeft, Eye, RefreshCw, X, Wand2, Hand, Palette, PenTool, Type, Heart, Shuffle } from 'lucide-react';
+import { Share2, Flower as FlowerIcon, Check, Copy, ArrowLeft, Eye, RefreshCw, X, Wand2, Hand, Palette, PenTool, Type, Heart, Shuffle, Download } from 'lucide-react';
+import QRCode from "react-qr-code";
 
 // --- Components ---
 
@@ -451,9 +452,9 @@ const ThemePicker = ({ currentThemeId, onSelect }: { currentThemeId: string, onS
 );
 
 const SuccessOverlay = ({ bouquet, onClose, onPreview }: { bouquet: BouquetData, onClose: () => void, onPreview: () => void }) => {
-  const [copied, setCopied] = useState(false);
   const [shareUrl, setShareUrl] = useState('');
   const theme = THEMES.find(t => t.id === bouquet.themeId) || THEMES[0];
+  const qrRef = useRef<HTMLDivElement>(null);
 
   // Derive confetti palette from theme
   const confettiColors = [
@@ -468,10 +469,31 @@ const SuccessOverlay = ({ bouquet, onClose, onPreview }: { bouquet: BouquetData,
     setShareUrl(url);
   }, [bouquet]);
 
-  const handleCopy = () => {
-    navigator.clipboard.writeText(shareUrl);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+  const handleDownloadQR = () => {
+    const svg = qrRef.current?.querySelector("svg");
+    if (!svg) return;
+
+    const svgData = new XMLSerializer().serializeToString(svg);
+    const canvas = document.createElement("canvas");
+    const ctx = canvas.getContext("2d");
+    const img = new Image();
+
+    img.onload = () => {
+      canvas.width = img.width;
+      canvas.height = img.height;
+      if (ctx) {
+        ctx.fillStyle = "white";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.drawImage(img, 0, 0);
+        const pngFile = canvas.toDataURL("image/png");
+        const downloadLink = document.createElement("a");
+        downloadLink.download = "bouqlink-qr.png";
+        downloadLink.href = pngFile;
+        downloadLink.click();
+      }
+    };
+
+    img.src = "data:image/svg+xml;base64," + btoa(svgData);
   };
 
   return (
@@ -479,29 +501,31 @@ const SuccessOverlay = ({ bouquet, onClose, onPreview }: { bouquet: BouquetData,
       {/* Confetti Explosion on Mount */}
       <Confetti colors={confettiColors} />
 
-      <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-md p-10 relative border border-white/50 transform transition-all animate-pop">
+      <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-md p-10 relative border border-white/50 transform transition-all animate-pop flex flex-col items-center">
         <button onClick={onClose} className="absolute top-6 right-6 p-2 hover:bg-gray-50 rounded-full text-gray-400 hover:text-gray-600 transition-colors">
           <X size={20} />
         </button>
 
-        <div className="text-center mb-8">
+        <div className="text-center mb-6">
           <div className="w-20 h-20 bg-green-50 text-green-500 rounded-full flex items-center justify-center mx-auto mb-6 shadow-sm">
             <Check size={32} />
           </div>
-          <h2 className="text-3xl font-midcentury font-bold text-gray-900 mb-2">Beautifully Wrapped.</h2>
-          <p className="text-gray-500">Your digital timeline is ready to share.</p>
+          <h2 className="text-3xl font-midcentury font-bold text-gray-900 mb-2">Ready to Gift.</h2>
+          <p className="text-gray-500">Share this QR code with your special someone.</p>
         </div>
 
-        <div className="bg-gray-50 rounded-xl p-4 mb-8 flex items-center gap-3 border border-gray-100">
-          <input readOnly value={shareUrl} className="bg-transparent flex-1 text-sm font-mono outline-none text-gray-500" />
-          <button onClick={handleCopy} className="p-2 bg-white rounded-lg shadow-sm hover:shadow text-gray-600 transition-all">
-            {copied ? <Check size={16} /> : <Copy size={16} />}
-          </button>
+        <div className="bg-white p-4 rounded-xl border-2 border-dashed border-gray-200 mb-8" ref={qrRef}>
+          <QRCode
+            value={shareUrl}
+            size={200}
+            style={{ height: "auto", maxWidth: "100%", width: "100%" }}
+            viewBox={`0 0 256 256`}
+          />
         </div>
 
-        <div className="flex flex-col gap-3">
-          <button onClick={handleCopy} className="w-full py-4 bg-gray-900 text-white font-medium rounded-2xl shadow-lg hover:bg-black hover:shadow-xl hover:-translate-y-1 transition-all flex items-center justify-center gap-2">
-            <Share2 size={18} /> Copy Link
+        <div className="flex flex-col gap-3 w-full">
+          <button onClick={handleDownloadQR} className="w-full py-4 bg-gray-900 text-white font-medium rounded-2xl shadow-lg hover:bg-black hover:shadow-xl hover:-translate-y-1 transition-all flex items-center justify-center gap-2">
+            <Download size={18} /> Download QR Code
           </button>
           <button onClick={onPreview} className="w-full py-4 bg-white text-gray-900 border border-gray-200 font-medium rounded-2xl hover:bg-gray-50 flex items-center justify-center gap-2 transition-colors">
             <Eye size={18} /> Preview Experience
