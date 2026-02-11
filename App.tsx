@@ -186,16 +186,16 @@ const Hero = ({ onStart }: { onStart: () => void }) => (
         <p className="font-display font-bold tracking-widest uppercase text-sm">Digital Floristry</p>
       </div>
 
-      <h1 className="text-8xl md:text-[10rem] font-display font-black mb-6 leading-[0.85] text-black tracking-tighter animate-fade-in-up uppercase mix-blend-hard-light" style={{ animationDelay: '0.1s' }}>
+      <h1 className="text-5xl md:text-8xl lg:text-[10rem] font-display font-black mb-6 leading-[0.85] text-black tracking-tighter animate-fade-in-up uppercase mix-blend-hard-light" style={{ animationDelay: '0.1s' }}>
         Bouq<br /><span className="text-transparent bg-clip-text bg-gradient-to-r from-[#FF3B30] to-[#FF3B30]">Link</span>
       </h1>
 
-      <div className="flex items-center justify-center gap-8 mb-12 opacity-90 animate-fade-in-up" style={{ animationDelay: '0.2s' }}>
-        <div className="h-[2px] w-24 bg-black"></div>
-        <p className="text-2xl md:text-3xl font-display font-bold text-black uppercase tracking-tight">
+      <div className="flex items-center justify-center gap-4 md:gap-8 mb-12 opacity-90 animate-fade-in-up" style={{ animationDelay: '0.2s' }}>
+        <div className="h-[2px] w-12 md:w-24 bg-black"></div>
+        <p className="text-lg md:text-3xl font-display font-bold text-black uppercase tracking-tight">
           Send Flowers.<br />No Water Required.
         </p>
-        <div className="h-[2px] w-24 bg-black"></div>
+        <div className="h-[2px] w-12 md:w-24 bg-black"></div>
       </div>
 
       <button
@@ -714,10 +714,10 @@ export default function App() {
         <Header onReset={() => window.location.reload()} />
 
         <main className="max-w-[1600px] mx-auto p-4 md:p-6 lg:p-8">
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 h-[calc(100vh-140px)] min-h-[700px]">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:h-[calc(100vh-140px)] lg:min-h-[700px] h-auto">
 
             {/* LEFT SIDEBAR: Tools */}
-            <div className="lg:col-span-2 flex flex-col gap-4 h-full overflow-hidden">
+            <div className="lg:col-span-2 flex flex-col gap-4 lg:h-full h-auto overflow-hidden order-1">
               {/* Mode Toggle */}
               <div className="bg-white p-2 rounded-[2rem] shadow-sm border border-white/60 shrink-0">
                 <div className="flex bg-gray-50/80 p-1 rounded-3xl">
@@ -737,18 +737,18 @@ export default function App() {
               </div>
 
               {/* Flowers (Scrollable Panel) */}
-              <StudioPanel title="Florist" icon={FlowerIcon} className="flex-1 min-h-0">
+              <StudioPanel title="Florist" icon={FlowerIcon} className="flex-1 min-h-[300px] lg:min-h-0">
                 <FlowerPicker onAdd={handleAddFlower} />
               </StudioPanel>
 
               {/* Theme (Scrollable Panel) */}
-              <StudioPanel title="Aesthetic" icon={Palette} className="flex-1 min-h-0">
+              <StudioPanel title="Aesthetic" icon={Palette} className="flex-1 min-h-[200px] lg:min-h-0">
                 <ThemePicker currentThemeId={bouquet.themeId} onSelect={(id) => setBouquet(prev => ({ ...prev, themeId: id }))} />
               </StudioPanel>
             </div>
 
             {/* CENTER: Canvas */}
-            <div className="lg:col-span-8 flex flex-col h-full">
+            <div className="lg:col-span-8 flex flex-col lg:h-full h-[600px] order-2">
               <div className="bg-white rounded-[2rem] p-4 shadow-xl shadow-pink-100/50 flex-1 relative flex flex-col border border-white/80">
                 <div className="absolute top-4 left-4 z-10 flex gap-2">
                   <div className="bg-white/80 backdrop-blur px-4 py-1.5 rounded-full text-[10px] font-bold text-gray-400 uppercase tracking-widest pointer-events-none border border-gray-100 shadow-sm">
@@ -780,8 +780,8 @@ export default function App() {
             </div>
 
             {/* RIGHT SIDEBAR: Letter & Actions */}
-            <div className="lg:col-span-2 flex flex-col gap-4 h-full overflow-hidden">
-              <StudioPanel title="The Note" icon={PenTool} className="flex-1 flex flex-col min-h-0">
+            <div className="lg:col-span-2 flex flex-col gap-4 lg:h-full h-auto overflow-hidden order-3">
+              <StudioPanel title="The Note" icon={PenTool} className="flex-1 flex flex-col min-h-[300px] lg:min-h-0">
                 <div className="flex-1 flex flex-col gap-6">
                   <div>
                     <label className="block text-[10px] font-bold text-gray-400 uppercase mb-2 tracking-wider">Message</label>
