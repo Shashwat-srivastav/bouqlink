@@ -1,0 +1,5 @@
+{
+  "name": "BouqLink",
+  "description": "A minimal web app to curate digital bouquets and letters, shareable via a single link.",
+  "requestFramePermissions": []
+}
