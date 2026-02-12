@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { THEMES, FLOWERS, CATEGORIES } from './constants';
 import { BouquetData, FlowerData, ThemeConfig } from './types';
-import { encodeBouquet, decodeBouquet, generateRandomPosition, generateSmartPosition } from './utils';
+import { encodeBouquet, decodeBouquet, generateRandomPosition, generateSmartPosition, shortenUrl } from './utils';
 import { Share2, Flower as FlowerIcon, Check, Copy, ArrowLeft, Eye, RefreshCw, X, Wand2, Hand, Palette, PenTool, Type, Heart, Shuffle, Download } from 'lucide-react';
 import QRCode from "react-qr-code";
 
@@ -301,18 +301,23 @@ const Canvas = ({
     }));
   };
 
-  const handleDragStart = (id: string, e: React.MouseEvent) => {
-    if (readOnly || buildMode === 'auto') return;
-    setDragId(id);
-    e.stopPropagation();
+  const handleMouseUp = () => {
+    setDragId(null);
+    window.removeEventListener('mousemove', handleGlobalMouseMove);
+    window.removeEventListener('mouseup', handleMouseUp);
   };
 
-  const handleMouseMove = (e: React.MouseEvent) => {
+  const handleGlobalMouseMove = (e: MouseEvent) => {
     if (!dragId || !containerRef.current || !setBouquet) return;
     const rect = containerRef.current.getBoundingClientRect();
 
-    const x = ((e.clientX - rect.left) / rect.width) * 100;
-    const y = ((e.clientY - rect.top) / rect.height) * 100;
+    // Calculate percentage position
+    let x = ((e.clientX - rect.left) / rect.width) * 100;
+    let y = ((e.clientY - rect.top) / rect.height) * 100;
+
+    // Clamp to canvas boundaries (optional, but good for UX)
+    // x = Math.max(0, Math.min(100, x));
+    // y = Math.max(0, Math.min(100, y));
 
     setBouquet(prev => ({
       ...prev,
@@ -322,15 +327,27 @@ const Canvas = ({
     }));
   };
 
-  const handleMouseUp = () => {
-    setDragId(null);
+  const handleDragStart = (id: string, e: React.MouseEvent) => {
+    if (readOnly || buildMode === 'auto') return;
+    e.preventDefault(); // Prevent native drag
+    e.stopPropagation();
+    setDragId(id);
+    window.addEventListener('mousemove', handleGlobalMouseMove);
+    window.addEventListener('mouseup', handleMouseUp);
   };
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      window.removeEventListener('mousemove', handleGlobalMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [dragId]); // Re-bind if dragId changes (though handlers are stable enough)
 
   return (
     <div
       ref={containerRef}
-      onMouseMove={handleMouseMove}
-      onMouseUp={handleMouseUp}
+      // Remove onMouseMove and onMouseUp from here as they are now global
       className={`relative w-full h-full overflow-hidden transition-all duration-500 ${readOnly ? '' : `min-h-[500px] ${buildMode === 'manual' ? 'cursor-crosshair' : 'cursor-default'} ${theme.canvas.borderRadius} border`}`}
       style={{
         background: theme.canvas.bg,
@@ -453,6 +470,7 @@ const ThemePicker = ({ currentThemeId, onSelect }: { currentThemeId: string, onS
 
 const SuccessOverlay = ({ bouquet, onClose, onPreview }: { bouquet: BouquetData, onClose: () => void, onPreview: () => void }) => {
   const [shareUrl, setShareUrl] = useState('');
+  const [isShortening, setIsShortening] = useState(false);
   const theme = THEMES.find(t => t.id === bouquet.themeId) || THEMES[0];
   const qrRef = useRef<HTMLDivElement>(null);
 
@@ -465,9 +483,22 @@ const SuccessOverlay = ({ bouquet, onClose, onPreview }: { bouquet: BouquetData,
 
   useEffect(() => {
     const hash = encodeBouquet(bouquet);
-    const url = `${window.location.origin}${window.location.pathname}#${hash}`;
+    // Use query params instead of hash for better shortener compatibility
+    const url = `${window.location.origin}${window.location.pathname}?data=${hash}`;
     setShareUrl(url);
   }, [bouquet]);
+
+  const handleShorten = async () => {
+    setIsShortening(true);
+    try {
+      const short = await shortenUrl(shareUrl);
+      setShareUrl(short);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setIsShortening(false);
+    }
+  };
 
   const handleDownloadQR = () => {
     const svg = qrRef.current?.querySelector("svg");
@@ -514,16 +545,42 @@ const SuccessOverlay = ({ bouquet, onClose, onPreview }: { bouquet: BouquetData,
           <p className="text-gray-500">Share this QR code with your special someone.</p>
         </div>
 
-        <div className="bg-white p-4 rounded-xl border-2 border-dashed border-gray-200 mb-8" ref={qrRef}>
+        <div
+          className="p-8 rounded-xl border-4 mb-8 bg-white transition-colors duration-300"
+          style={{
+            borderColor: theme.colors.border === 'transparent' ? '#eee' : theme.colors.border,
+            backgroundColor: (theme.colors.bg === '#000000' || theme.id === 'cyberpunk') ? '#ffffff' : theme.colors.card // Ensure good contrast for QR code
+          }}
+          ref={qrRef}
+        >
           <QRCode
+            key={shareUrl}
             value={shareUrl}
             size={200}
+            level="L"
             style={{ height: "auto", maxWidth: "100%", width: "100%" }}
             viewBox={`0 0 256 256`}
+            fgColor={theme.colors.text}
+            bgColor={theme.colors.bg === '#000000' ? '#ffffff' : theme.colors.card} // Fallback for dark modes to ensure readability if needed, or match theme
           />
         </div>
 
+        <div className="w-full mb-6 p-3 bg-gray-50 rounded-xl border border-gray-100 overflow-hidden">
+          <p className="text-[10px] text-gray-400 uppercase font-bold tracking-widest mb-1">Shareable Link</p>
+          <p className="text-xs text-gray-600 truncate font-mono">{shareUrl}</p>
+        </div>
+
         <div className="flex flex-col gap-3 w-full">
+          {!shareUrl.includes('is.gd') && (
+            <button
+              onClick={handleShorten}
+              disabled={isShortening}
+              className="w-full py-4 bg-indigo-500 text-white font-medium rounded-2xl shadow-lg hover:bg-indigo-600 disabled:opacity-50 transition-all flex items-center justify-center gap-2"
+            >
+              <RefreshCw size={18} className={isShortening ? "animate-spin" : ""} />
+              {isShortening ? "Shortening..." : "Shorten URL for easier scan"}
+            </button>
+          )}
           <button onClick={handleDownloadQR} className="w-full py-4 bg-gray-900 text-white font-medium rounded-2xl shadow-lg hover:bg-black hover:shadow-xl hover:-translate-y-1 transition-all flex items-center justify-center gap-2">
             <Download size={18} /> Download QR Code
           </button>
@@ -657,12 +714,11 @@ export default function App() {
 
   useEffect(() => {
     const hash = window.location.hash.slice(1);
-    if (hash) {
-      const data = decodeBouquet(hash);
-      if (data) {
-        setBouquet(data);
-        setMode('view');
-      }
+    // decodeBouquet now handles both hash and query params internally
+    const data = decodeBouquet(hash);
+    if (data) {
+      setBouquet(data);
+      setMode('view');
     }
   }, []);
 
