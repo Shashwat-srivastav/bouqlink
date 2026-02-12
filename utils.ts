@@ -1,9 +1,27 @@
+import { nanoid } from 'nanoid';
 import { BouquetData } from './types';
 import LZString from 'lz-string';
 
+// Minified keys for shorter URLs
+// t: themeId, f: flowers, l: letter, s: sender
+// For flowers: i: id, fI: flowerId, x, y, r: rotation, s: scale
+
 export const encodeBouquet = (data: BouquetData): string => {
   try {
-    const jsonString = JSON.stringify(data);
+    const minifiedData = {
+      t: data.themeId,
+      l: data.letter,
+      s: data.sender,
+      f: data.flowers.map(f => ({
+        i: f.id,
+        fI: f.flowerId,
+        x: Number(f.x.toFixed(1)),
+        y: Number(f.y.toFixed(1)),
+        r: Number(f.rotation.toFixed(1)),
+        s: Number(f.scale.toFixed(1))
+      }))
+    };
+    const jsonString = JSON.stringify(minifiedData);
     return LZString.compressToEncodedURIComponent(jsonString);
   } catch (e) {
     console.error("Failed to encode data", e);
@@ -32,7 +50,26 @@ export const decodeBouquet = (hash: string): BouquetData | null => {
 
   if (decompressed && decompressed.startsWith('{')) {
     try {
-      return JSON.parse(decompressed);
+      const parsed = JSON.parse(decompressed);
+
+      // Handle minified format
+      if (parsed.t !== undefined || parsed.f !== undefined) {
+        return {
+          themeId: parsed.t || 'soft-swiss',
+          letter: parsed.l || '',
+          sender: parsed.s || '',
+          flowers: (parsed.f || []).map((f: any) => ({
+            id: f.i,
+            flowerId: f.fI,
+            x: f.x,
+            y: f.y,
+            rotation: f.r,
+            scale: f.s
+          }))
+        };
+      }
+
+      return parsed; // Old format
     } catch (e) {
       console.error("Decompressed string not valid JSON", e);
     }
@@ -61,27 +98,7 @@ export const generateRandomPosition = () => {
   return { x, y, rotation, scale };
 };
 
-export const shortenUrl = async (longUrl: string): Promise<string> => {
-  try {
-    // Some shorteners struggle with hashes (#). Query params (?) are more standard.
-    // Ensure we are sending a clean URL.
-    const response = await fetch(`https://is.gd/create.php?format=json&url=${encodeURIComponent(longUrl)}`);
-    const data = await response.json();
-
-    if (data.shorturl) {
-      return data.shorturl;
-    }
-
-    if (data.errormessage) {
-      console.warn("Shortener error:", data.errormessage);
-    }
-
-    return longUrl;
-  } catch (e) {
-    console.error("Failed to shorten URL", e);
-    return longUrl;
-  }
-};
+// Shortening removed for minimalism. The minified URL format is now compact enough for direct QR codes.
 
 export const generateSmartPosition = (index: number) => {
   // "Hand-Tied Bouquet" Algorithm

@@ -1,11 +1,38 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { THEMES, FLOWERS, CATEGORIES } from './constants';
 import { BouquetData, FlowerData, ThemeConfig } from './types';
-import { encodeBouquet, decodeBouquet, generateRandomPosition, generateSmartPosition, shortenUrl } from './utils';
+import { encodeBouquet, decodeBouquet, generateRandomPosition, generateSmartPosition } from './utils';
 import { Share2, Flower as FlowerIcon, Check, Copy, ArrowLeft, Eye, RefreshCw, X, Wand2, Hand, Palette, PenTool, Type, Heart, Shuffle, Download } from 'lucide-react';
-import QRCode from "react-qr-code";
+import kjua from 'kjua';
+import { nanoid } from 'nanoid';
 
 // --- Components ---
+
+const KjuaQR = ({ text, fill, back, size = 200 }: { text: string, fill: string, back?: string, size?: number }) => {
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!containerRef.current) return;
+
+    // Clear existing QR
+    containerRef.current.innerHTML = '';
+
+    // Generate new QR
+    const qr = kjua({
+      text,
+      fill: fill || '#000000',
+      size,
+      rounded: 30, // As requested
+      render: 'image', // Makes it easier to download/copy
+      ecLevel: 'L', // Lowest for simplicity
+      back: back || '#ffffff' // Use provided background or white
+    });
+
+    containerRef.current.appendChild(qr);
+  }, [text, fill, back, size]);
+
+  return <div ref={containerRef} className="flex items-center justify-center p-4 bg-white rounded-2xl" />;
+};
 
 const FallingParticles = () => {
   const particles = React.useMemo(() => {
@@ -470,7 +497,6 @@ const ThemePicker = ({ currentThemeId, onSelect }: { currentThemeId: string, onS
 
 const SuccessOverlay = ({ bouquet, onClose, onPreview }: { bouquet: BouquetData, onClose: () => void, onPreview: () => void }) => {
   const [shareUrl, setShareUrl] = useState('');
-  const [isShortening, setIsShortening] = useState(false);
   const theme = THEMES.find(t => t.id === bouquet.themeId) || THEMES[0];
   const qrRef = useRef<HTMLDivElement>(null);
 
@@ -487,18 +513,6 @@ const SuccessOverlay = ({ bouquet, onClose, onPreview }: { bouquet: BouquetData,
     const url = `${window.location.origin}${window.location.pathname}?data=${hash}`;
     setShareUrl(url);
   }, [bouquet]);
-
-  const handleShorten = async () => {
-    setIsShortening(true);
-    try {
-      const short = await shortenUrl(shareUrl);
-      setShareUrl(short);
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setIsShortening(false);
-    }
-  };
 
   const handleDownloadQR = () => {
     const svg = qrRef.current?.querySelector("svg");
@@ -528,12 +542,12 @@ const SuccessOverlay = ({ bouquet, onClose, onPreview }: { bouquet: BouquetData,
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-white/60 backdrop-blur-md animate-fade-in">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-white/60 backdrop-blur-md animate-fade-in overflow-y-auto">
       {/* Confetti Explosion on Mount */}
       <Confetti colors={confettiColors} />
 
-      <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-md p-10 relative border border-white/50 transform transition-all animate-pop flex flex-col items-center">
-        <button onClick={onClose} className="absolute top-6 right-6 p-2 hover:bg-gray-50 rounded-full text-gray-400 hover:text-gray-600 transition-colors">
+      <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-md p-6 md:p-10 relative border border-white/50 transform transition-all animate-pop flex flex-col items-center max-h-[90vh] overflow-y-auto custom-scrollbar">
+        <button onClick={onClose} className="absolute top-4 right-4 md:top-6 md:right-6 p-2 hover:bg-gray-50 rounded-full text-gray-400 hover:text-gray-600 transition-colors z-10">
           <X size={20} />
         </button>
 
@@ -546,23 +560,24 @@ const SuccessOverlay = ({ bouquet, onClose, onPreview }: { bouquet: BouquetData,
         </div>
 
         <div
-          className="p-8 rounded-xl border-4 mb-8 bg-white transition-colors duration-300"
+          className="p-8 rounded-xl border-4 mb-8 transition-colors duration-300"
           style={{
             borderColor: theme.colors.border === 'transparent' ? '#eee' : theme.colors.border,
-            backgroundColor: (theme.colors.bg === '#000000' || theme.id === 'cyberpunk') ? '#ffffff' : theme.colors.card // Ensure good contrast for QR code
+            backgroundColor: theme.colors.bg === '#000000' || theme.id === 'cyberpunk' ? '#ffffff' : theme.colors.bg
           }}
           ref={qrRef}
         >
-          <QRCode
-            key={shareUrl}
-            value={shareUrl}
-            size={200}
-            level="L"
-            style={{ height: "auto", maxWidth: "100%", width: "100%" }}
-            viewBox={`0 0 256 256`}
-            fgColor={theme.colors.text}
-            bgColor={theme.colors.bg === '#000000' ? '#ffffff' : theme.colors.card} // Fallback for dark modes to ensure readability if needed, or match theme
-          />
+          <div className="p-8 rounded-3xl shadow-lg mb-6 flex justify-center items-center overflow-hidden" style={{
+            backgroundColor: theme.colors.card === 'rgba(212,175,55,0.05)' || theme.colors.card === 'rgba(255,255,255,0.6)' || theme.colors.card === 'rgba(255,255,255,0.5)' ? '#ffffff' : theme.colors.card,
+            border: `3px solid ${theme.colors.accent}`,
+          }}>
+            <KjuaQR
+              text={shareUrl}
+              fill={theme.colors.accent}
+              size={200}
+              back="#ffffff"
+            />
+          </div>
         </div>
 
         <div className="w-full mb-6 p-3 bg-gray-50 rounded-xl border border-gray-100 overflow-hidden">
@@ -571,16 +586,15 @@ const SuccessOverlay = ({ bouquet, onClose, onPreview }: { bouquet: BouquetData,
         </div>
 
         <div className="flex flex-col gap-3 w-full">
-          {!shareUrl.includes('is.gd') && (
-            <button
-              onClick={handleShorten}
-              disabled={isShortening}
-              className="w-full py-4 bg-indigo-500 text-white font-medium rounded-2xl shadow-lg hover:bg-indigo-600 disabled:opacity-50 transition-all flex items-center justify-center gap-2"
-            >
-              <RefreshCw size={18} className={isShortening ? "animate-spin" : ""} />
-              {isShortening ? "Shortening..." : "Shorten URL for easier scan"}
-            </button>
-          )}
+          <button
+            onClick={() => {
+              navigator.clipboard.writeText(shareUrl);
+              alert("Link copied to clipboard!");
+            }}
+            className="w-full py-4 bg-indigo-500 text-white font-medium rounded-2xl shadow-lg hover:bg-indigo-600 transition-all flex items-center justify-center gap-2"
+          >
+            <Copy size={18} /> Copy Link
+          </button>
           <button onClick={handleDownloadQR} className="w-full py-4 bg-gray-900 text-white font-medium rounded-2xl shadow-lg hover:bg-black hover:shadow-xl hover:-translate-y-1 transition-all flex items-center justify-center gap-2">
             <Download size={18} /> Download QR Code
           </button>
@@ -743,7 +757,7 @@ export default function App() {
       const randomFlowerType = FLOWERS[Math.floor(Math.random() * FLOWERS.length)];
       const pos = generateSmartPosition(i);
       newFlowers.push({
-        id: Math.random().toString(36).substr(2, 9),
+        id: nanoid(4),
         flowerId: randomFlowerType.id,
         x: pos.x,
         y: pos.y,
@@ -765,7 +779,7 @@ export default function App() {
     }
 
     const newFlower: FlowerData = {
-      id: Math.random().toString(36).substr(2, 9),
+      id: nanoid(4),
       flowerId: id,
       x: pos.x,
       y: pos.y,
