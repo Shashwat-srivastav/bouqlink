@@ -515,21 +515,21 @@ const SuccessOverlay = ({ bouquet, onClose, onPreview }: { bouquet: BouquetData,
   }, [bouquet]);
 
   const handleDownloadQR = () => {
-    const svg = qrRef.current?.querySelector("svg");
-    if (!svg) return;
+    const img = qrRef.current?.querySelector("img");
+    if (!img) return;
 
-    const svgData = new XMLSerializer().serializeToString(svg);
     const canvas = document.createElement("canvas");
     const ctx = canvas.getContext("2d");
-    const img = new Image();
+    const image = new Image();
 
-    img.onload = () => {
-      canvas.width = img.width;
-      canvas.height = img.height;
+    image.crossOrigin = "anonymous";
+    image.onload = () => {
+      canvas.width = image.width;
+      canvas.height = image.height;
       if (ctx) {
         ctx.fillStyle = "white";
         ctx.fillRect(0, 0, canvas.width, canvas.height);
-        ctx.drawImage(img, 0, 0);
+        ctx.drawImage(image, 0, 0);
         const pngFile = canvas.toDataURL("image/png");
         const downloadLink = document.createElement("a");
         downloadLink.download = "bouqlink-qr.png";
@@ -538,7 +538,7 @@ const SuccessOverlay = ({ bouquet, onClose, onPreview }: { bouquet: BouquetData,
       }
     };
 
-    img.src = "data:image/svg+xml;base64," + btoa(svgData);
+    image.src = img.src;
   };
 
   return (
